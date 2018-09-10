@@ -25,7 +25,7 @@ This application returns build and application status badges for services and bu
 }
 ```
 1. Set you `AWS_PROFILE` environment variable.
-1. `make deploy`
+1. `make build deploy`
 
 ## Endpoints
 
