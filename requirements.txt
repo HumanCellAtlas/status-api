@@ -1,0 +1,4 @@
+chalice==1.5.0
+dcplib
+requests
+retrying

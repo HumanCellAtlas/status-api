@@ -102,3 +102,14 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# dev environment
+.idea/
+.terraform/
+.vscode/
+
+# artifact
+lambda.zip
+
+# secrets
+terraform.tfvars
