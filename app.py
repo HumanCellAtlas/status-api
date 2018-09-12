@@ -128,6 +128,5 @@ def _ids_to_tag_mappings(health_check_ids):
 
 
 @global_cache(ttl=60)
-@retrying.retry(wait_fixed=1000, wait_random_max=1500, stop_max_attempt_number=2)
 def _get_health_check_status(rId):
     return route53.get_health_check_status(HealthCheckId=rId)
