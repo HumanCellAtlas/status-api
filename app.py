@@ -3,18 +3,17 @@ import json
 import logging
 import re
 import requests
-import retrying
 
 from chalice import Chalice, Response
 from dcplib.aws_secret import AwsSecret
-from cache import global_cache
 from svgs import *
 
 app = Chalice(app_name='status-api')
+dynamodb = boto3.client('dynamodb')
 
 app.debug = True
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 # API endpoints
@@ -28,35 +27,27 @@ route53 = boto3.client('route53')
 
 @app.route("/service/{service_name}", methods=["GET"])
 def service(service_name):
-    global MAPPING_CACHE
-
     if not VALID_NAME.match(service_name):
         return INVALID_RESPONSE
 
     service_name = _remove_suffix(service_name)
+    status_row = dynamodb.get_item(
+        TableName='application_statuses',
+        Key={'service_name': {'S': service_name}}
+    )
 
-    rId = _get_tag_mappings().get(service_name)
+    svg = {
+        'ok': SERVICE_OK,
+        'error': SERVICE_ERROR,
+        None: SERVICE_UNKNOWN
+    }[_recursive_get(status_row, 'Item', 'status', 'S')]
 
-    if not rId:
-        return Response(
-            status_code=200,
-            headers={
-                'Content-Type': 'image/svg+xml'
-            },
-            body=SERVICE_UNKNOWN
-        )
-
-    response = _get_health_check_status(rId)
-    healthy = all([
-        ele['StatusReport']['Status'].startswith('Success')
-        for ele in response['HealthCheckObservations']
-    ])
     return Response(
         status_code=200,
         headers={
             'Content-Type': 'image/svg+xml'
         },
-        body=SERVICE_OK if healthy else SERVICE_ERROR
+        body=svg
     )
 
 
@@ -87,46 +78,11 @@ def _remove_suffix(param):
     return re.sub('[.]svg$', '', param)
 
 
-def _find_first(f, collection):
-    for ele in collection:
-        if f(ele):
-            return ele
-    return None
+def _recursive_get(d, *args):
+    if d is None or len(args) == 0:
+        return None
+    if len(args) > 1:
+        return _recursive_get(d.get(args[0]), *args[1:])
+    else:
+        return d.get(args[0])
 
-
-@global_cache(ttl=60)
-def _get_tag_mappings():
-    health_check_ids = _get_health_check_ids()
-    return _ids_to_tag_mappings(health_check_ids)
-
-
-def _get_health_check_ids():
-    marker = True
-    health_check_ids = []
-    while marker:
-        response = route53.list_health_checks()
-        marker = response.get('NextMarker')
-        health_check_ids += [ele['Id'] for ele in response['HealthChecks']]
-    return health_check_ids
-
-
-def _ids_to_tag_mappings(health_check_ids):
-    mapping = dict()
-    while health_check_ids:
-        batch = health_check_ids[:10]
-        health_check_ids = health_check_ids[10:]
-        response = route53.list_tags_for_resources(
-            ResourceType='healthcheck',
-            ResourceIds=batch
-        )
-        for tag_set in response['ResourceTagSets']:
-            rId = tag_set['ResourceId']
-            name = _find_first(lambda s: s['Key'] == 'Name', tag_set['Tags'])
-            if name:
-                mapping[name['Value']] = rId
-    return mapping
-
-
-@global_cache(ttl=60)
-def _get_health_check_status(rId):
-    return route53.get_health_check_status(HealthCheckId=rId)

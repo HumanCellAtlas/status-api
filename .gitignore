@@ -113,3 +113,5 @@ lambda.zip
 
 # secrets
 terraform.tfvars
+
+tags

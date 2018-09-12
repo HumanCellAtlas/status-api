@@ -9,11 +9,11 @@ default: build
 
 .PHONY: clean
 clean:
-	@rm -rf target lambda.zip
+	rm -rf target lambda.zip
 
 .PHONY: target
 target:
-	@mkdir -p target
+	mkdir -p target
 
 .PHONY: init
 init:
@@ -33,10 +33,9 @@ test:
 
 .PHONY: build
 build: clean target
-	@venv/bin/pip install -r requirements.txt -t target/ --upgrade > /dev/null
-	@cp *.py target/
-	@cd target && zip -r ../lambda.zip * > /dev/null
-	@echo '{"status": "done"}'
+	venv/bin/pip install -r requirements.txt -t target/ --upgrade
+	cp *.py target/
+	cd target && zip -r ../lambda.zip *
 
 .PHONY: deploy
 deploy:
