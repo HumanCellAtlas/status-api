@@ -3,6 +3,7 @@ import json
 import logging
 import re
 import requests
+from requests.adapters import ConnectionError
 
 from chalice import Chalice, Response
 from dcplib.aws_secret import AwsSecret
@@ -59,18 +60,28 @@ def build(group, build, branch):
 
     branch = _remove_suffix(branch)
 
-    response = requests.get(
-        f"{GITLAB_SECRET['gitlab_base_url']}{group}/{build}/badges/{branch}/build.svg",
-        headers={
-            'PRIVATE-TOKEN': GITLAB_SECRET['gitlab_api_token']
-        }
-    )
+    status_code = 200
+    content_type = 'image/svg+xml'
+    svg = PIPELINE_UNKNOWN
+    try:
+        response = requests.get(
+            f"{GITLAB_SECRET['gitlab_base_url']}{group}/{build}/badges/{branch}/build.svg",
+            headers={
+                'PRIVATE-TOKEN': GITLAB_SECRET['gitlab_api_token']
+            }
+        )
+        content_type = response.headers['Content-Type']
+        status_code = response.status_code
+        svg = response.text
+    except ConnectionError:
+        logger.info('Could not contact GitLab server!')
+
     return Response(
-        status_code=response.status_code,
+        status_code=status_code,
         headers={
-            'Content-Type': response.headers['Content-Type']
+            'Content-Type': content_type
         },
-        body=response.text
+        body=svg
     )
 
 
