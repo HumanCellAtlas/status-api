@@ -70,9 +70,10 @@ def build(group, build, branch):
                 'PRIVATE-TOKEN': GITLAB_SECRET['gitlab_api_token']
             }
         )
-        content_type = response.headers['Content-Type']
-        status_code = response.status_code
-        svg = response.text
+        if response.status_code != 404:
+            content_type = response.headers['Content-Type']
+            status_code = response.status_code
+            svg = response.text
     except ConnectionError:
         logger.info('Could not contact GitLab server!')
 
