@@ -46,7 +46,8 @@ def service(service_name):
     return Response(
         status_code=200,
         headers={
-            'Content-Type': 'image/svg+xml'
+            'Content-Type': 'image/svg+xml',
+            'Cache-Control': 'no-cache'
         },
         body=svg
     )
@@ -80,7 +81,8 @@ def build(group, build, branch):
     return Response(
         status_code=status_code,
         headers={
-            'Content-Type': content_type
+            'Content-Type': content_type,
+            'Cache-Control': 'no-cache'
         },
         body=svg
     )
