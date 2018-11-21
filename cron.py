@@ -47,18 +47,19 @@ def handler(event, context):
                 'time_to_exist': {'N': str(calendar.timegm(time.gmtime()) + 180)}
             }
         )
-        logger.info(f"Updated {service_name} to status \"{status}\"")
+        logger.info(f"Updated {service_name} ({resource_id}) to status \"{status}\", with availability {availability}")
     logger.info("done")
 
 
 def _availability(health_check_id):
-    end_date = datetime.datetime.utcnow()
+    end_date = datetime.datetime.utcnow() - datetime.timedelta(minutes=5)
     start_date = end_date - datetime.timedelta(days=30)
-    period = int((end_date - start_date).total_seconds())
+    # note: tried to calculate this with a ratio of 'Sum' and 'SampleCount,' but the metrics seem
+    # to be updated independently, causing arithmetic errors :(
     data = cloudwatch.get_metric_data(
         MetricDataQueries=[
             {
-                'Id': "sum",
+                'Id': "avg",
                 'MetricStat': {
                     'Metric': {
                         'Namespace': 'AWS/Route53',
@@ -70,36 +71,18 @@ def _availability(health_check_id):
                             },
                         ]
                     },
-                    'Period': period,
-                    'Stat': 'Sum',
+                    'Period': 300,
+                    'Stat': 'Average',
                 },
                 'ReturnData': True
-            },
-            {
-                'Id': "sample_count",
-                'MetricStat': {
-                    'Metric': {
-                        'Namespace': 'AWS/Route53',
-                        'MetricName': 'HealthCheckPercentageHealthy',
-                        'Dimensions': [
-                            {
-                                'Name': 'HealthCheckId',
-                                'Value': health_check_id
-                            },
-                        ]
-                    },
-                    'Period': period,
-                    'Stat': 'SampleCount',
-                },
-                'ReturnData': True
-            },
+            }
         ],
         StartTime=start_date,
         EndTime=end_date
     )['MetricDataResults']
-    metric_sum = next(ele for ele in data if ele['Id'] == 'sum')['Values'][0]
-    metric_sample_count = next(ele for ele in data if ele['Id'] == 'sample_count')['Values'][0]
-    return metric_sum / metric_sample_count
+    percentages = next(ele for ele in data if ele['Id'] == 'avg')['Values']
+    availability = sum(percentages) / float(len(percentages))
+    return availability
 
 
 def _find_first(f, collection):
