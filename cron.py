@@ -52,10 +52,9 @@ def handler(event, context):
 
 
 def _availability(health_check_id):
-    end_date = datetime.datetime.utcnow() - datetime.timedelta(minutes=5)
+    end_date = datetime.datetime.utcnow()
     start_date = end_date - datetime.timedelta(days=30)
-    # note: tried to calculate this with a ratio of 'Sum' and 'SampleCount,' but the metrics seem
-    # to be updated independently, causing arithmetic errors :(
+    period = int((end_date - start_date).total_seconds())
     data = cloudwatch.get_metric_data(
         MetricDataQueries=[
             {
@@ -71,7 +70,7 @@ def _availability(health_check_id):
                             },
                         ]
                     },
-                    'Period': 300,
+                    'Period': period,
                     'Stat': 'Average',
                 },
                 'ReturnData': True
@@ -80,8 +79,9 @@ def _availability(health_check_id):
         StartTime=start_date,
         EndTime=end_date
     )['MetricDataResults']
-    percentages = next(ele for ele in data if ele['Id'] == 'avg')['Values']
-    availability = sum(percentages) / float(len(percentages))
+    avg = next(ele for ele in data if ele['Id'] == 'avg')
+    min_ind = avg['Timestamps'].index(min(avg['Timestamps']))
+    availability = avg['Values'][min_ind]
     return availability
 
 
