@@ -17,6 +17,7 @@ target:
 
 .PHONY: init
 init:
+	rm -rf .terraform
 	terraform init \
 		-backend-config bucket=$(shell jq -r .terraform_bucket terraform.tfvars) \
 		-backend-config region=$(shell jq -r .aws_region terraform.tfvars) \
