@@ -26,22 +26,51 @@ INVALID_RESPONSE = Response(status_code=406, body=json.dumps({'status': 'request
 route53 = boto3.client('route53')
 
 
-@app.route("/service/{service_name}", methods=["GET"])
+@app.route("/availability/{service_name}", methods=["GET"])
 def service(service_name):
     if not VALID_NAME.match(service_name):
         return INVALID_RESPONSE
-
     service_name = _remove_suffix(service_name)
-    status_row = dynamodb.get_item(
+
+    row = dynamodb.get_item(
         TableName='application_statuses',
         Key={'service_name': {'S': service_name}}
     )
 
+    availability_str = _recursive_get(row, 'Item', 'availability', 'N')
+    availability = float(availability_str) if availability_str else availability_str
+    badge_color = 'lightgrey'
+    if availability:
+        badge_color = 'brightgreen' if availability >= 99.999 else 'yellow' if availability >= 95.0 else 'red'
+    svg = make_availability_svg(badge_color, availability)
+
+    return Response(
+        status_code=200,
+        headers={
+            'Content-Type': 'image/svg+xml',
+            'Cache-Control': 'no-cache'
+        },
+        body=svg
+    )
+
+
+@app.route("/service/{service_name}", methods=["GET"])
+def service(service_name):
+    if not VALID_NAME.match(service_name):
+        return INVALID_RESPONSE
+    service_name = _remove_suffix(service_name)
+
+    row = dynamodb.get_item(
+        TableName='application_statuses',
+        Key={'service_name': {'S': service_name}}
+    )
+
+    status = _recursive_get(row, 'Item', 'status', 'S')
     svg = {
         'ok': SERVICE_OK,
         'error': SERVICE_ERROR,
         None: SERVICE_UNKNOWN
-    }[_recursive_get(status_row, 'Item', 'status', 'S')]
+    }[status]
 
     return Response(
         status_code=200,
@@ -99,4 +128,3 @@ def _recursive_get(d, *args):
         return _recursive_get(d.get(args[0]), *args[1:])
     else:
         return d.get(args[0])
-

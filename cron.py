@@ -1,4 +1,5 @@
 import calendar
+import datetime
 import logging
 import time
 
@@ -7,6 +8,7 @@ from botocore.exceptions import ClientError
 
 route53 = boto3.client('route53')
 dynamodb = boto3.client('dynamodb')
+cloudwatch = boto3.client('cloudwatch')
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -35,16 +37,69 @@ def handler(event, context):
             for ele in response['HealthCheckObservations']
         ])
         status = "ok" if healthy else "error"
+        availability = _availability(resource_id)
         dynamodb.put_item(
             TableName='application_statuses',
             Item={
                 'service_name': {'S': service_name},
                 'status': {'S': status},
+                'availability': {'N': str(availability)},
                 'time_to_exist': {'N': str(calendar.timegm(time.gmtime()) + 180)}
             }
         )
         logger.info(f"Updated {service_name} to status \"{status}\"")
     logger.info("done")
+
+
+def _availability(health_check_id):
+    end_date = datetime.datetime.utcnow()
+    start_date = end_date - datetime.timedelta(days=30)
+    period = int((end_date - start_date).total_seconds())
+    data = cloudwatch.get_metric_data(
+        MetricDataQueries=[
+            {
+                'Id': "sum",
+                'MetricStat': {
+                    'Metric': {
+                        'Namespace': 'AWS/Route53',
+                        'MetricName': 'HealthCheckPercentageHealthy',
+                        'Dimensions': [
+                            {
+                                'Name': 'HealthCheckId',
+                                'Value': health_check_id
+                            },
+                        ]
+                    },
+                    'Period': period,
+                    'Stat': 'Sum',
+                },
+                'ReturnData': True
+            },
+            {
+                'Id': "sample_count",
+                'MetricStat': {
+                    'Metric': {
+                        'Namespace': 'AWS/Route53',
+                        'MetricName': 'HealthCheckPercentageHealthy',
+                        'Dimensions': [
+                            {
+                                'Name': 'HealthCheckId',
+                                'Value': health_check_id
+                            },
+                        ]
+                    },
+                    'Period': period,
+                    'Stat': 'SampleCount',
+                },
+                'ReturnData': True
+            },
+        ],
+        StartTime=start_date,
+        EndTime=end_date
+    )['MetricDataResults']
+    metric_sum = next(ele for ele in data if ele['Id'] == 'sum')['Values'][0]
+    metric_sample_count = next(ele for ele in data if ele['Id'] == 'sample_count')['Values'][0]
+    return metric_sum / metric_sample_count
 
 
 def _find_first(f, collection):

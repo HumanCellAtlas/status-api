@@ -95,6 +95,11 @@ resource "aws_iam_policy" "status_cron" {
                 "dynamodb:UpdateItem"
             ],
             "Resource": "${aws_dynamodb_table.statuses.arn}"
+        },
+        {
+            "Effect": "Allow",
+            "Action": "cloudwatch:GetMetricData",
+            "Resource": "*"
         }
     ]
 }
