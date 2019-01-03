@@ -27,7 +27,7 @@ route53 = boto3.client('route53')
 
 
 @app.route("/availability/{service_name}", methods=["GET"])
-def service(service_name):
+def availability(service_name):
     if not VALID_NAME.match(service_name):
         return INVALID_RESPONSE
     service_name = _remove_suffix(service_name)
