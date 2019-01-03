@@ -48,7 +48,7 @@ def availability(service_name):
         status_code=200,
         headers={
             'Content-Type': 'image/svg+xml',
-            'Cache-Control': 'no-cache'
+            'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate'
         },
         body=svg
     )
@@ -76,7 +76,7 @@ def service(service_name):
         status_code=200,
         headers={
             'Content-Type': 'image/svg+xml',
-            'Cache-Control': 'no-cache'
+            'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate'
         },
         body=svg
     )
@@ -111,7 +111,7 @@ def build(group, build, branch):
         status_code=status_code,
         headers={
             'Content-Type': content_type,
-            'Cache-Control': 'no-cache'
+            'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate'
         },
         body=svg
     )
