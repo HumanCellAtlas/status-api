@@ -30,11 +30,11 @@ route53 = boto3.client('route53')
 def availability(service_name):
     if not VALID_NAME.match(service_name):
         return INVALID_RESPONSE
-    service_name = _remove_suffix(service_name)
+    service_name_no_suffix = _remove_suffix(service_name)
 
     row = dynamodb.get_item(
         TableName='application_statuses',
-        Key={'service_name': {'S': service_name}}
+        Key={'service_name': {'S': service_name_no_suffix}}
     )
 
     availability_str = _recursive_get(row, 'Item', 'availability', 'N')
@@ -42,15 +42,25 @@ def availability(service_name):
     badge_color = 'lightgrey'
     if availability:
         badge_color = 'brightgreen' if availability >= 99.999 else 'yellow' if availability >= 95.0 else 'red'
-    svg = make_availability_svg(badge_color, availability)
+
+    if service_name.endswith('.svg'):
+        svg = make_availability_svg(badge_color, availability)
+        return Response(
+            status_code=200,
+            headers={
+                'Content-Type': 'image/svg+xml',
+                'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate'
+            },
+            body=svg
+        )
 
     return Response(
         status_code=200,
         headers={
-            'Content-Type': 'image/svg+xml',
+            'Content-Type': 'application/json',
             'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate'
         },
-        body=svg
+        body=dict(service_name=service_name_no_suffix, availability=availability)
     )
 
 
@@ -58,27 +68,38 @@ def availability(service_name):
 def service(service_name):
     if not VALID_NAME.match(service_name):
         return INVALID_RESPONSE
-    service_name = _remove_suffix(service_name)
+    service_name_no_suffix = _remove_suffix(service_name)
 
     row = dynamodb.get_item(
         TableName='application_statuses',
-        Key={'service_name': {'S': service_name}}
+        Key={'service_name': {'S': service_name_no_suffix}}
     )
 
     status = _recursive_get(row, 'Item', 'status', 'S')
-    svg = {
-        'ok': SERVICE_OK,
-        'error': SERVICE_ERROR,
-        None: SERVICE_UNKNOWN
-    }[status]
+
+    if service_name.endswith('.svg'):
+        svg = {
+            'ok': SERVICE_OK,
+            'error': SERVICE_ERROR,
+            None: SERVICE_UNKNOWN
+        }[status]
+
+        return Response(
+            status_code=200,
+            headers={
+                'Content-Type': 'image/svg+xml',
+                'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate'
+            },
+            body=svg
+        )
 
     return Response(
         status_code=200,
         headers={
-            'Content-Type': 'image/svg+xml',
+            'Content-Type': 'application/json',
             'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate'
         },
-        body=svg
+        body=dict(service_name=service_name_no_suffix, status=status)
     )
 
 
@@ -117,7 +138,7 @@ def build(group, build, branch):
     )
 
 
-def _remove_suffix(param):
+def _remove_suffix(param: str):
     return re.sub('[.]svg$', '', param)
 
 
