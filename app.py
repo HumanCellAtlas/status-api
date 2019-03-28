@@ -27,7 +27,7 @@ route53 = boto3.client('route53')
 
 
 @app.route("/availability/{service_name}", methods=["GET"])
-def availability(service_name):
+def get_availability(service_name):
     if not VALID_NAME.match(service_name):
         return INVALID_RESPONSE
     service_name_no_suffix = _remove_suffix(service_name)
@@ -37,10 +37,11 @@ def availability(service_name):
         Key={'service_name': {'S': service_name_no_suffix}}
     )
 
-    availability_str = _recursive_get(row, 'Item', 'availability', 'N')
-    availability = float(availability_str) if availability_str else availability_str
+    availability = None
     badge_color = 'lightgrey'
-    if availability:
+    availability_str = _recursive_get(row, 'Item', 'availability', 'N')
+    if availability_str:
+        availability = float(availability_str)
         badge_color = 'brightgreen' if availability >= 99.999 else 'yellow' if availability >= 95.0 else 'red'
 
     if service_name.endswith('.svg'):
@@ -54,6 +55,9 @@ def availability(service_name):
             body=svg
         )
 
+    if not availability:
+        return Response(status_code=404, body=dict(service_name=service_name_no_suffix, status="not found"))
+
     return Response(
         status_code=200,
         headers={
@@ -65,7 +69,7 @@ def availability(service_name):
 
 
 @app.route("/service/{service_name}", methods=["GET"])
-def service(service_name):
+def get_service(service_name):
     if not VALID_NAME.match(service_name):
         return INVALID_RESPONSE
     service_name_no_suffix = _remove_suffix(service_name)
@@ -93,6 +97,9 @@ def service(service_name):
             body=svg
         )
 
+    if status is None:
+        return Response(status_code=404,body=dict(service_name=service_name_no_suffix, status="not found"))
+
     return Response(
         status_code=200,
         headers={
@@ -104,7 +111,7 @@ def service(service_name):
 
 
 @app.route("/build/{group}/{build}/{branch}", methods=["GET"])
-def build(group, build, branch):
+def get_build(group, build, branch):
     for param in [group, build, branch]:
         if not VALID_NAME.match(param):
             return INVALID_RESPONSE
