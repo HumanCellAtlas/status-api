@@ -44,7 +44,13 @@ def get_availability(service_name):
         availability = float(availability_str)
         badge_color = 'brightgreen' if availability >= 99.999 else 'yellow' if availability >= 95.0 else 'red'
 
+    headers = {
+        'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate',
+        'Access-Control-Allow-Origin': '*'
+    }
+
     if service_name.endswith('.svg'):
+        headers['Content-Type'] = 'image/svg+xml'
         svg = make_availability_svg(badge_color, availability)
         return Response(
             status_code=200,
@@ -58,12 +64,10 @@ def get_availability(service_name):
     if not availability:
         return Response(status_code=404, body=dict(service_name=service_name_no_suffix, status="not found"))
 
+    headers['Content-Type'] = 'application/json'
     return Response(
         status_code=200,
-        headers={
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate'
-        },
+        headers=headers,
         body=dict(service_name=service_name_no_suffix, availability=availability)
     )
 
@@ -80,6 +84,10 @@ def get_service(service_name):
     )
 
     status = _recursive_get(row, 'Item', 'status', 'S')
+    headers = {
+        'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate',
+        'Access-Control-Allow-Origin': '*'
+    }
 
     if service_name.endswith('.svg'):
         svg = {
@@ -87,25 +95,20 @@ def get_service(service_name):
             'error': SERVICE_ERROR,
             None: SERVICE_UNKNOWN
         }[status]
-
-        return Response(
-            status_code=200,
-            headers={
-                'Content-Type': 'image/svg+xml',
-                'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate'
-            },
-            body=svg
-        )
+        headers['Content-Type'] = 'image/svg+xml'
+        return Response(status_code=200, headers=headers, body=svg)
 
     if status is None:
-        return Response(status_code=404,body=dict(service_name=service_name_no_suffix, status="not found"))
+        return Response(
+            status_code=404,
+            headers=headers,
+            body=dict(service_name=service_name_no_suffix, status="not found")
+        )
 
+    headers['Content-Type'] = 'application/json'
     return Response(
         status_code=200,
-        headers={
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate'
-        },
+        headers=headers,
         body=dict(service_name=service_name_no_suffix, status=status)
     )
 
@@ -139,6 +142,7 @@ def get_build(group, build, branch):
         status_code=status_code,
         headers={
             'Content-Type': content_type,
+            'Access-Control-Allow-Origin': '*',
             'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate'
         },
         body=svg
