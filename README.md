@@ -36,3 +36,7 @@ Returns a status badge from a GitLab build.
 ### `GET /service/{service_name}`
 
 Returns a status badge from a Route53 health check. `service_name` is, in fact, the name of the health check.
+
+## Security
+
+**Please note**: If you believe you have found a security issue, _please responsibly disclose_ by contacting us at [security-leads@data.humancellatlas.org](mailto:security-leads@data.humancellatlas.org).
