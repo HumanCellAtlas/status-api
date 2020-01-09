@@ -1,9 +1,9 @@
 variable "aws_profile" {
-  type = "string"
+  type = string
 }
 
 variable "aws_region" {
-  type = "string"
+  type = string
 }
 
 variable "domain_name" {

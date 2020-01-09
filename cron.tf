@@ -2,11 +2,11 @@
 resource "aws_lambda_function" "status_cron" {
   filename         = "lambda.zip"
   function_name    = "status-cron"
-  role             = "${aws_iam_role.status_cron.arn}"
+  role             =  aws_iam_role.status_cron.arn
   handler          = "cron.handler"
   runtime          = "python3.6"
   memory_size      = "128"
-  source_code_hash = "${base64sha256(file("./lambda.zip"))}"
+  source_code_hash =  base64sha256(file("./lambda.zip"))
   timeout = 300
 }
 
@@ -20,8 +20,8 @@ resource "aws_lambda_permission" "status_cron" {
   statement_id = "AllowExecutionFromCloudWatch"
   principal = "events.amazonaws.com"
   action = "lambda:InvokeFunction"
-  function_name = "${aws_lambda_function.status_cron.function_name}"
-  source_arn = "${aws_cloudwatch_event_rule.status_cron.arn}"
+  function_name =  aws_lambda_function.status_cron.function_name
+  source_arn =  aws_cloudwatch_event_rule.status_cron.arn
   depends_on = [
     "aws_lambda_function.status_cron"
   ]
@@ -29,8 +29,8 @@ resource "aws_lambda_permission" "status_cron" {
 
 resource "aws_cloudwatch_event_target" "status_cron" {
   target_id = "invoke-status-cron"
-  rule      = "${aws_cloudwatch_event_rule.status_cron.name}"
-  arn       = "${aws_lambda_function.status_cron.arn}"
+  rule      =  aws_cloudwatch_event_rule.status_cron.name
+  arn       =  aws_lambda_function.status_cron.arn
 }
 
 
@@ -107,7 +107,7 @@ POLICY
 }
 
 resource "aws_iam_role_policy_attachment" "status_cron" {
-  policy_arn = "${aws_iam_policy.status_cron.arn}"
-  role = "${aws_iam_role.status_cron.name}"
+  policy_arn =  aws_iam_policy.status_cron.arn
+  role =  aws_iam_role.status_cron.name
 }
 
